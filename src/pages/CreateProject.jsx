@@ -138,14 +138,14 @@ const CreateProject = () => {
             Please connect your wallet to create a project.
           </p>
           <button
-            className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-primary/90 transition-colors"
-            onClick={() => window.scrollTo(0, 0)} // Scroll to top to show connect button in navbar
+            className="bg-primary text-neutral-50 px-6 py-2 rounded-lg hover:bg-primary/90 transition-colors"
+            onClick={() => window.scrollTo(0, 0)}
           >
             Connect Wallet
           </button>
         </div>
       ) : (
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="bg-neutral-50 dark:bg-neutral-500 rounded-lg shadow-md p-6 border border-neutral-100 dark:border-neutral-400">
           {error && (
             <div className="bg-error/10 text-error p-4 rounded-lg mb-6">
               {error}
@@ -158,13 +158,16 @@ const CreateProject = () => {
               <h2 className="text-xl font-semibold mb-4">Project Details</h2>
 
               <div className="mb-4">
-                <label htmlFor="title" className="block text-gray-700 mb-2">
+                <label
+                  htmlFor="title"
+                  className="block text-neutral-600 dark:text-neutral-200 mb-2"
+                >
                   Project Title *
                 </label>
                 <input
                   type="text"
                   id="title"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  className="w-full px-4 py-2 bg-neutral-50 dark:bg-neutral-500 border border-neutral-200 dark:border-neutral-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
                   placeholder="Enter project title"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
@@ -175,13 +178,13 @@ const CreateProject = () => {
               <div className="mb-4">
                 <label
                   htmlFor="description"
-                  className="block text-gray-700 mb-2"
+                  className="block text-neutral-600 dark:text-neutral-200 mb-2"
                 >
                   Project Description *
                 </label>
                 <textarea
                   id="description"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 h-32"
+                  className="w-full px-4 py-2 bg-neutral-50 dark:bg-neutral-500 border border-neutral-200 dark:border-neutral-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 h-32"
                   placeholder="Describe your project in detail"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
@@ -193,14 +196,14 @@ const CreateProject = () => {
                 <div>
                   <label
                     htmlFor="fundingGoal"
-                    className="block text-gray-700 mb-2"
+                    className="block text-neutral-600 dark:text-neutral-200 mb-2"
                   >
                     Funding Goal (MOVE) *
                   </label>
                   <input
                     type="number"
                     id="fundingGoal"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    className="w-full px-4 py-2 bg-neutral-50 dark:bg-neutral-500 border border-neutral-200 dark:border-neutral-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
                     placeholder="Enter funding goal"
                     value={fundingGoal}
                     onChange={(e) => setFundingGoal(e.target.value)}
@@ -213,14 +216,14 @@ const CreateProject = () => {
                 <div>
                   <label
                     htmlFor="deadline"
-                    className="block text-gray-700 mb-2"
+                    className="block text-neutral-600 dark:text-neutral-200 mb-2"
                   >
                     Funding Deadline *
                   </label>
                   <input
                     type="date"
                     id="deadline"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    className="w-full px-4 py-2 bg-neutral-50 dark:bg-neutral-500 border border-neutral-200 dark:border-neutral-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
                     value={deadline}
                     onChange={(e) => setDeadline(e.target.value)}
                     min={minDate}
@@ -236,7 +239,7 @@ const CreateProject = () => {
                 <h2 className="text-xl font-semibold">Project Milestones</h2>
                 <button
                   type="button"
-                  className="bg-secondary text-white px-4 py-1 rounded-lg hover:bg-secondary/90 transition-colors text-sm"
+                  className="bg-secondary text-neutral-50 px-4 py-1 rounded-lg hover:bg-secondary/90 transition-colors text-sm"
                   onClick={addMilestone}
                 >
                   Add Milestone
@@ -247,7 +250,7 @@ const CreateProject = () => {
                 {milestones.map((milestone, index) => (
                   <div
                     key={index}
-                    className="border border-gray-200 rounded-lg p-4"
+                    className="bg-neutral-50 dark:bg-neutral-500 border border-neutral-200 dark:border-neutral-400 rounded-lg p-4"
                   >
                     <div className="flex justify-between items-center mb-2">
                       <h3 className="font-medium">Milestone {index + 1}</h3>
@@ -263,12 +266,12 @@ const CreateProject = () => {
                     </div>
 
                     <div className="mb-3">
-                      <label className="block text-gray-700 mb-1 text-sm">
+                      <label className="block text-neutral-600 dark:text-neutral-200 mb-1 text-sm">
                         Description *
                       </label>
                       <input
                         type="text"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
+                        className="w-full px-4 py-2 bg-neutral-50 dark:bg-neutral-500 border border-neutral-200 dark:border-neutral-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
                         placeholder="Describe this milestone"
                         value={milestone.description}
                         onChange={(e) =>
@@ -279,12 +282,12 @@ const CreateProject = () => {
                     </div>
 
                     <div>
-                      <label className="block text-gray-700 mb-1 text-sm">
+                      <label className="block text-neutral-600 dark:text-neutral-200 mb-1 text-sm">
                         Amount (MOVE) *
                       </label>
                       <input
                         type="number"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
+                        className="w-full px-4 py-2 bg-neutral-50 dark:bg-neutral-500 border border-neutral-200 dark:border-neutral-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
                         placeholder="Funding amount for this milestone"
                         value={milestone.amount}
                         onChange={(e) =>
@@ -299,7 +302,7 @@ const CreateProject = () => {
                 ))}
               </div>
 
-              <div className="mt-4 text-sm text-gray-500">
+              <div className="mt-4 text-sm text-neutral-500 dark:text-neutral-300">
                 <p>
                   Note: The sum of all milestone amounts should equal your total
                   funding goal.
@@ -319,7 +322,7 @@ const CreateProject = () => {
             <div className="flex justify-end">
               <button
                 type="submit"
-                className={`bg-primary text-white px-8 py-3 rounded-lg hover:bg-primary/90 transition-colors ${
+                className={`bg-primary text-neutral-50 px-8 py-3 rounded-lg hover:bg-primary/90 transition-colors ${
                   loading ? "opacity-50 cursor-not-allowed" : ""
                 }`}
                 disabled={loading}

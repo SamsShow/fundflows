@@ -4,9 +4,11 @@ version = "0.1.0"
 authors = ["FundFlow Team"]
 
 [addresses]
-fundflow = "0x1" # This will be replaced with the actual deployment address
+std = "0x1"
+aptos_std = "0x1"
+aptos_framework = "0x1"
+fundflow = "0x7872e435cfc5150d12070f7f8b638960afa364c9b24c040a960ef8756305eba2"
 
 [dependencies]
-# Movement Labs dependencies will be added here
-# For now, we'll use the standard library
-MoveStdlib = { git = "https://github.com/move-language/move.git", subdir = "language/move-stdlib", rev = "main" } 
+AptosFramework = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/aptos-framework/", rev = "aptos-node-v1.27.1" }
+MoveStdlib = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/move-stdlib/", rev = "aptos-node-v1.27.1" } 

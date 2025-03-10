@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useWallet } from "../context/WalletContext";
 import ThemeToggle from "./ThemeToggle";
 import MovementLogo from "./MovementLogo";
+import NetworkSwitcher from "./NetworkSwitcher";
 import { FiMenu, FiX, FiExternalLink } from "react-icons/fi";
 
 const Navbar = () => {
@@ -19,8 +20,8 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="bg-white dark:bg-neutral-600 border-b border-neutral-100 dark:border-neutral-500 sticky top-0 z-50 backdrop-blur-sm bg-opacity-90 dark:bg-opacity-90">
-      <div className="container mx-auto px-4">
+    <nav className="bg-neutral-50 dark:bg-neutral-600 border-b border-neutral-100 dark:border-neutral-500 sticky top-0 z-50 backdrop-blur-sm bg-opacity-90 dark:bg-opacity-90 w-full">
+      <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-20">
           <div className="flex items-center space-x-1">
             <Link to="/" className="flex items-center">
@@ -70,7 +71,7 @@ const Navbar = () => {
               </Link>
             )}
             <a
-              href="https://movement.xyz"
+              href="https://movementlabs.xyz"
               target="_blank"
               rel="noopener noreferrer"
               className="font-medium text-neutral-400 dark:text-neutral-200 hover:text-primary-300 dark:hover:text-primary transition-colors flex items-center"
@@ -80,9 +81,11 @@ const Navbar = () => {
             </a>
           </div>
 
-          {/* Wallet Connection and Theme Toggle */}
+          {/* Wallet Connection, Network Switcher and Theme Toggle */}
           <div className="hidden md:flex items-center space-x-4">
             <ThemeToggle />
+
+            {isConnected && <NetworkSwitcher />}
 
             {isConnected ? (
               <div className="flex items-center space-x-4">
@@ -110,6 +113,7 @@ const Navbar = () => {
           {/* Mobile Menu Button */}
           <div className="md:hidden flex items-center space-x-4">
             <ThemeToggle />
+            {isConnected && <NetworkSwitcher />}
             <button
               onClick={toggleMenu}
               className="text-neutral-500 dark:text-neutral-200 hover:text-primary-300 dark:hover:text-primary focus:outline-none"
@@ -158,7 +162,7 @@ const Navbar = () => {
                 </Link>
               )}
               <a
-                href="https://movement.xyz"
+                href="https://movementlabs.xyz"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="font-medium text-neutral-400 dark:text-neutral-200 hover:text-primary-300 dark:hover:text-primary transition-colors flex items-center"

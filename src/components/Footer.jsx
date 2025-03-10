@@ -4,7 +4,7 @@ import MovementLogo from "./MovementLogo";
 
 const Footer = () => {
   return (
-    <footer className="bg-white dark:bg-neutral-600 border-t border-neutral-100 dark:border-neutral-500 pt-16 pb-8">
+    <footer className="bg-neutral-50 dark:bg-neutral-600 border-t border-neutral-100 dark:border-neutral-500 pt-16 pb-8">
       <div className="container mx-auto px-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
           <div>
@@ -97,7 +97,7 @@ const Footer = () => {
             <ul className="space-y-2">
               <li>
                 <a
-                  href="https://movement.xyz"
+                  href="https://movementlabs.xyz"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-neutral-400 dark:text-neutral-200 hover:text-primary-300 dark:hover:text-primary transition-colors flex items-center"
@@ -189,7 +189,7 @@ const Footer = () => {
               Powered by
             </span>
             <a
-              href="https://movement.xyz"
+              href="https://movementlabs.xyz"
               target="_blank"
               rel="noopener noreferrer"
               className="ml-2 flex items-center"
