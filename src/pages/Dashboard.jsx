@@ -128,7 +128,7 @@ const Dashboard = () => {
           <div className="w-16 h-16 bg-gray-300 rounded-full"></div>
           <div className="ml-4">
             <p className="text-sm text-gray-500">Connected as</p>
-            <p className="font-medium">{account}</p>
+            <p className="font-medium text-black">{account}</p>
           </div>
         </div>
       </div>
@@ -179,11 +179,11 @@ const Dashboard = () => {
               {myProjects.map((project) => (
                 <div
                   key={project.id}
-                  className="bg-white rounded-lg shadow-md overflow-hidden"
+                  className="bg-zinc-200 rounded-lg shadow-md overflow-hidden"
                 >
                   <div className="p-6">
                     <div className="flex justify-between items-start mb-2">
-                      <h3 className="text-xl font-semibold">{project.title}</h3>
+                      <h3 className="text-xl font-semibold text-black">{project.title}</h3>
                       <span
                         className={`text-xs px-2 py-1 rounded-full ${
                           project.status === "Funding"
@@ -288,11 +288,11 @@ const Dashboard = () => {
               {myContributions.map((project) => (
                 <div
                   key={project.id}
-                  className="bg-white rounded-lg shadow-md overflow-hidden"
+                  className="bg-zinc-200 rounded-lg shadow-md overflow-hidden"
                 >
                   <div className="p-6">
                     <div className="flex justify-between items-start mb-2">
-                      <h3 className="text-xl font-semibold">{project.title}</h3>
+                      <h3 className="text-xl font-semibold text-black">{project.title}</h3>
                       <span
                         className={`text-xs px-2 py-1 rounded-full ${
                           project.status === "Funding"

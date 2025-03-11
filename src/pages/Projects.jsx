@@ -188,7 +188,7 @@ const Projects = () => {
                 <div className="h-48 bg-gray-200"></div>
                 <div className="p-6">
                   <div className="flex justify-between items-start mb-2">
-                    <h3 className="text-xl font-semibold">{project.title}</h3>
+                    <h3 className="text-xl font-semibold text-black">{project.title}</h3>
                     <span
                       className={`text-xs px-2 py-1 rounded-full ${
                         project.status === "Funding"
@@ -261,7 +261,7 @@ const Projects = () => {
 
                   <Link
                     to={`/projects/${project.id}`}
-                    className="block w-full text-center bg-primary text-white py-2 rounded-lg hover:bg-primary/90 transition-colors"
+                    className="block w-full text-center bg-primary text-black py-2 rounded-lg hover:bg-primary/90 transition-colors"
                   >
                     View Project
                   </Link>

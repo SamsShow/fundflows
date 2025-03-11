@@ -3,57 +3,21 @@ import { useWallet } from "../context/WalletContext";
 import { FiChevronDown, FiX } from "react-icons/fi";
 import MovementLogo from "./MovementLogo";
 
-// Supported wallets for Movement Network
+// Supported wallets for Movement Network (Both EVM and Aptos)
 const supportedWallets = [
-  {
-    id: "rajor",
-    name: "Rajor Wallet",
-    icon: "https://rajor.app/assets/logo.png",
-    description: "Connect with Rajor Wallet for Movement (Recommended)",
-    connector: async (connectWallet) => {
-      if (typeof window.rajor !== "undefined") {
-        await connectWallet();
-      } else {
-        window.open("https://rajor.app/download", "_blank");
-      }
-    },
-    isDetected: () => typeof window.rajor !== "undefined",
-  },
-  {
-    id: "okx",
-    name: "OKX Wallet",
-    icon: "https://public.bnbstatic.com/static/images/common/okx.png",
-    description: "Connect with OKX Wallet",
-    connector: async (connectWallet) => {
-      if (typeof window.okxwallet !== "undefined") {
-        await connectWallet();
-      } else {
-        window.open("https://www.okx.com/web3", "_blank");
-      }
-    },
-    isDetected: () => typeof window.okxwallet !== "undefined",
-  },
-  {
-    id: "metamask",
-    name: "MetaMask",
-    icon: "https://metamask.io/images/metamask-logo.png",
-    description: "Connect to your MetaMask Wallet",
-    connector: async (connectWallet) => {
-      if (typeof window.ethereum !== "undefined") {
-        await connectWallet();
-      } else {
-        window.open("https://metamask.io/download/", "_blank");
-      }
-    },
-    isDetected: () => typeof window.ethereum !== "undefined",
-  },
+  // Aptos-based Movement wallets
   {
     id: "petra",
     name: "Petra Wallet",
     icon: "https://petra.app/img/logo.svg",
-    description: "Connect to Petra Wallet (for Movement)",
-    connector: () => {
-      window.open("https://petra.app/", "_blank");
+    description: "Connect to Petra Wallet for Movement (Aptos)",
+    network: "aptos",
+    connector: async (connectWallet) => {
+      if (typeof window.petra !== "undefined") {
+        await connectWallet("aptos");
+      } else {
+        window.open("https://petra.app/", "_blank");
+      }
     },
     isDetected: () => typeof window.petra !== "undefined",
   },
@@ -61,9 +25,14 @@ const supportedWallets = [
     id: "martian",
     name: "Martian Wallet",
     icon: "https://martianwallet.xyz/assets/martian.png",
-    description: "Connect to Martian Wallet (for Movement)",
-    connector: () => {
-      window.open("https://martianwallet.xyz/", "_blank");
+    description: "Connect to Martian Wallet for Movement (Aptos)",
+    network: "aptos",
+    connector: async (connectWallet) => {
+      if (typeof window.martian !== "undefined") {
+        await connectWallet("aptos");
+      } else {
+        window.open("https://martianwallet.xyz/", "_blank");
+      }
     },
     isDetected: () => typeof window.martian !== "undefined",
   },
@@ -71,32 +40,90 @@ const supportedWallets = [
     id: "pontem",
     name: "Pontem Wallet",
     icon: "https://pontem.network/img/logo.svg",
-    description: "Connect to Pontem Wallet (for Movement)",
-    connector: () => {
-      window.open("https://pontem.network/wallet", "_blank");
+    description: "Connect to Pontem Wallet for Movement (Aptos)",
+    network: "aptos",
+    connector: async (connectWallet) => {
+      if (typeof window.pontem !== "undefined") {
+        await connectWallet("aptos");
+      } else {
+        window.open("https://pontem.network/wallet", "_blank");
+      }
     },
+    isDetected: () => typeof window.pontem !== "undefined",
+  },
+  // EVM-based Movement wallets
+  {
+    id: "rajor",
+    name: "Rajor Wallet",
+    icon: "https://rajor.app/assets/logo.png",
+    description: "Connect with Rajor Wallet for Movement (EVM)",
+    network: "evm",
+    connector: async (connectWallet) => {
+      if (typeof window.rajor !== "undefined") {
+        await connectWallet("evm");
+      } else {
+        window.open("https://rajor.app/download", "_blank");
+      }
+    },
+    isDetected: () => typeof window.rajor !== "undefined",
+  },
+  {
+    id: "metamask",
+    name: "MetaMask",
+    icon: "https://metamask.io/images/metamask-logo.png",
+    description: "Connect to MetaMask on Sepolia Testnet",
+    network: "evm",
+    connector: async (connectWallet) => {
+      try {
+        await connectWallet("evm", "metamask");
+      } catch (error) {
+        console.error("MetaMask connection error:", error);
+      }
+    },
+    isDetected: () => window.ethereum && window.ethereum.isMetaMask,
+  },
+  {
+    id: "okx",
+    name: "OKX Wallet",
+    icon: "https://www.okx.com/cdn/assets/imgs/221/C81E7B0E583D7A01.png",
+    description: "Connect to OKX Wallet for Aptos",
+    network: "aptos",
+    connector: async (connectWallet) => {
+      try {
+        await connectWallet("aptos", "okx");
+      } catch (error) {
+        console.error("OKX wallet connection error:", error);
+      }
+    },
+    isDetected: () =>
+      typeof window.okxwallet !== "undefined" &&
+      typeof window.okxwallet.aptos !== "undefined",
   },
 ];
 
 const WalletSelector = () => {
   const {
-    connectWallet,
-    isConnected,
     account,
+    isConnected,
+    connectWallet,
     disconnectWallet,
     activeWallet,
+    error,
   } = useWallet();
-  const [isOpen, setIsOpen] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
   const [availableWallets, setAvailableWallets] = useState([]);
+  const [selectedNetworkType, setSelectedNetworkType] = useState("aptos"); // Default to Aptos
 
   // Update detected wallets
   useEffect(() => {
-    // Check which wallets are available in the browser
-    const detected = supportedWallets.map((wallet) => ({
-      ...wallet,
-      detected: wallet.isDetected(),
-    }));
+    // Filter wallets by selected network type and check availability
+    const detected = supportedWallets
+      .filter((wallet) => wallet.network === selectedNetworkType)
+      .map((wallet) => ({
+        ...wallet,
+        detected: wallet.isDetected(),
+      }));
 
     // Sort wallets: detected ones first, then alphabetically
     const sorted = detected.sort((a, b) => {
@@ -106,7 +133,7 @@ const WalletSelector = () => {
     });
 
     setAvailableWallets(sorted);
-  }, [isOpen]);
+  }, [isDropdownOpen, selectedNetworkType]);
 
   const formatAddress = (address) => {
     if (!address) return "";
@@ -117,7 +144,7 @@ const WalletSelector = () => {
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsOpen(false);
+        setIsDropdownOpen(false);
       }
     };
 
@@ -128,8 +155,8 @@ const WalletSelector = () => {
   }, []);
 
   const handleWalletConnect = async (wallet) => {
+    setIsDropdownOpen(false);
     await wallet.connector(connectWallet);
-    setIsOpen(false);
   };
 
   const getActiveWalletName = () => {
@@ -146,7 +173,7 @@ const WalletSelector = () => {
             {formatAddress(account)}
             {activeWallet && (
               <span className="ml-1 text-xs opacity-60">
-                ({getActiveWalletName()})
+                ({getActiveWalletName()} - {selectedNetworkType.toUpperCase()})
               </span>
             )}
           </span>
@@ -160,24 +187,24 @@ const WalletSelector = () => {
       ) : (
         <>
           <button
-            onClick={() => setIsOpen(!isOpen)}
+            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
             className="btn-primary text-sm py-2 flex items-center"
           >
             <MovementLogo className="h-4 w-4 mr-2" />
             Connect Wallet
             <FiChevronDown
               className={`ml-2 h-4 w-4 transition-transform ${
-                isOpen ? "rotate-180" : ""
+                isDropdownOpen ? "rotate-180" : ""
               }`}
             />
           </button>
 
-          {isOpen && (
+          {isDropdownOpen && (
             <div className="absolute right-0 mt-2 w-72 bg-neutral-50 dark:bg-neutral-500 rounded-xl shadow-lg border border-neutral-100 dark:border-neutral-400 z-50 overflow-hidden">
               <div className="flex justify-between items-center p-4 border-b border-neutral-100 dark:border-neutral-400">
                 <h3 className="font-medium">Connect Wallet</h3>
                 <button
-                  onClick={() => setIsOpen(false)}
+                  onClick={() => setIsDropdownOpen(false)}
                   className="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200"
                 >
                   <FiX className="h-5 w-5" />
@@ -185,9 +212,33 @@ const WalletSelector = () => {
               </div>
 
               <div className="p-2">
+                {/* Network Type Selector */}
+                <div className="flex space-x-2 p-2 mb-2 border-b border-neutral-100 dark:border-neutral-400">
+                  <button
+                    onClick={() => setSelectedNetworkType("aptos")}
+                    className={`px-3 py-1 rounded-full text-xs font-medium ${
+                      selectedNetworkType === "aptos"
+                        ? "bg-primary-300 text-white"
+                        : "bg-neutral-100 text-neutral-600 dark:bg-neutral-600 dark:text-neutral-300"
+                    }`}
+                  >
+                    Aptos Network
+                  </button>
+                  <button
+                    onClick={() => setSelectedNetworkType("evm")}
+                    className={`px-3 py-1 rounded-full text-xs font-medium ${
+                      selectedNetworkType === "evm"
+                        ? "bg-primary-300 text-white"
+                        : "bg-neutral-100 text-neutral-600 dark:bg-neutral-600 dark:text-neutral-300"
+                    }`}
+                  >
+                    EVM Network
+                  </button>
+                </div>
+
                 <p className="text-xs text-neutral-400 dark:text-neutral-300 px-2 py-2">
-                  Connect with one of our available wallet providers to get
-                  started with Movement Network.
+                  Connect with one of our available wallet providers for{" "}
+                  {selectedNetworkType.toUpperCase()} network.
                 </p>
 
                 {availableWallets.map((wallet) => (

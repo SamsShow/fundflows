@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import { ethers } from "ethers";
+import { contractService } from "../services/contractService";
+import { Aptos } from "@aptos-labs/ts-sdk";
 
 const WalletContext = createContext();
 
@@ -7,23 +9,43 @@ export function useWallet() {
   return useContext(WalletContext);
 }
 
-// Only Movement Network configuration
+// Network configurations
 const networks = {
-  movement: {
-    chainId: "0xFA", // 250 in hex for Movement Bardock testnet
-    chainName: "Movement Bardock Testnet",
+  // Movement EVM testnet
+  movement_evm: {
+    chainId: "0x1B59", // 7001 in hex for Movement EVM testnet
+    chainName: "Movement Testnet",
     nativeCurrency: {
       name: "MOVE",
       symbol: "MOVE",
       decimals: 18,
     },
-    rpcUrls: ["https://aptos.testnet.bardock.movementlabs.xyz/v1"],
-    blockExplorerUrls: ["https://explorer.movementlabs.xyz/"],
+    rpcUrls: ["https://movement-testnet-rpc.gelato.digital"],
+    blockExplorerUrls: ["https://movement-testnet.blockscout.com"],
+  },
+  // Sepolia testnet for MetaMask
+  sepolia: {
+    chainId: "0xaa36a7", // 11155111 in decimal
+    chainName: "Sepolia",
+    nativeCurrency: {
+      name: "ETH",
+      symbol: "ETH",
+      decimals: 18,
+    },
+    rpcUrls: ["https://rpc.sepolia.org"],
+    blockExplorerUrls: ["https://sepolia.etherscan.io"],
+  },
+  // Aptos network for OKX
+  movement_aptos: {
+    networkName: "Movement Aptos Testnet",
+    nodeUrl: "https://aptos.testnet.suzuka.movementlabs.xyz/v1",
+    chainId: "movement_testnet",
   },
 };
 
-// Fantom Network to check and avoid conflicts
-const FANTOM_CHAIN_ID = "0xFA";
+// Chain IDs
+const MOVEMENT_CHAIN_ID = "0x1B59"; // 7001 in hex
+const SEPOLIA_CHAIN_ID = "0xaa36a7"; // 11155111 in decimal
 
 export function WalletProvider({ children }) {
   const [provider, setProvider] = useState(null);
@@ -32,347 +54,330 @@ export function WalletProvider({ children }) {
   const [network, setNetwork] = useState(null);
   const [chainId, setChainId] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
-  const [currentNetwork, setCurrentNetwork] = useState("movement");
-  const [error, setError] = useState(null);
   const [activeWallet, setActiveWallet] = useState(null);
+  const [networkType, setNetworkType] = useState(null);
+  const [error, setError] = useState(null);
+  const [aptosClient, setAptosClient] = useState(null);
 
-  // Function to get provider based on available wallets
-  const getProvider = () => {
-    // Check for Rajor wallet
-    if (typeof window.rajor !== "undefined") {
-      setActiveWallet("rajor");
-      return window.rajor;
+  // Get wallet provider based on type
+  const getProvider = (type = null) => {
+    const walletType = type || networkType;
+
+    if (walletType === "evm") {
+      // For MetaMask, we specifically want to use MetaMask with Sepolia
+      if (window.ethereum && window.ethereum.isMetaMask) {
+        setActiveWallet("metamask");
+        return window.ethereum;
+      }
+    } else if (walletType === "aptos") {
+      // For OKX, we specifically want to use OKX with Aptos
+      if (typeof window.okxwallet !== "undefined" && window.okxwallet.aptos) {
+        setActiveWallet("okx");
+        return window.okxwallet.aptos;
+      }
     }
-    // Check for OKX wallet
-    else if (typeof window.okxwallet !== "undefined") {
-      setActiveWallet("okx");
-      return window.okxwallet;
-    }
-    // Then check for MetaMask
-    else if (typeof window.ethereum !== "undefined") {
-      setActiveWallet("metamask");
-      return window.ethereum;
-    }
+
     return null;
   };
 
-  // Function to ensure connection to Movement Network
-  const ensureMovementNetwork = async () => {
-    const walletProvider = getProvider();
+  // Function to ensure connection to correct network based on wallet
+  const ensureCorrectNetwork = async (type, wallet) => {
+    const walletProvider = getProvider(type);
     if (!walletProvider) return;
 
     try {
-      // Get current chain ID
-      const chainId = await walletProvider.request({ method: "eth_chainId" });
+      if (type === "aptos") {
+        // Handle Aptos network connection for OKX
+        if (wallet === "okx") {
+          try {
+            const network = await walletProvider.network();
+            if (network !== networks.movement_aptos.chainId) {
+              await walletProvider.setNetwork(networks.movement_aptos.chainId);
+            }
 
-      // Check if we're on Fantom network (also has chainId 0xFA)
-      const isFantom =
-        chainId === FANTOM_CHAIN_ID &&
-        activeWallet === "okx" &&
-        !(await isMovementNetwork(walletProvider, chainId));
+            // Initialize Aptos client
+            const aptosClient = new Aptos({
+              nodeUrl: networks.movement_aptos.nodeUrl,
+            });
+            setAptosClient(aptosClient);
+          } catch (error) {
+            console.error("Error setting Aptos network:", error);
+            setError("Failed to connect to Movement Aptos network");
+          }
+        }
+      } else if (type === "evm") {
+        // Handle EVM network connection
+        const chainId = await walletProvider.request({ method: "eth_chainId" });
 
-      if (chainId !== networks.movement.chainId || isFantom) {
-        await switchNetwork("movement");
+        // Different network handling based on wallet type
+        if (wallet === "metamask") {
+          // For MetaMask, we want to ensure it's on Sepolia
+          if (chainId !== SEPOLIA_CHAIN_ID) {
+            try {
+              await walletProvider.request({
+                method: "wallet_switchEthereumChain",
+                params: [{ chainId: SEPOLIA_CHAIN_ID }],
+              });
+            } catch (switchError) {
+              // This error code indicates that the chain has not been added to the wallet
+              if (switchError.code === 4902 || switchError.code === -32603) {
+                try {
+                  await walletProvider.request({
+                    method: "wallet_addEthereumChain",
+                    params: [networks.sepolia],
+                  });
+                } catch (addError) {
+                  console.error("Error adding Sepolia network:", addError);
+                  setError(
+                    "Failed to add Sepolia Network. Please add it manually."
+                  );
+                  return;
+                }
+              } else {
+                throw switchError;
+              }
+            }
+          }
+        } else {
+          // For other EVM wallets, ensure Movement network
+          if (chainId !== MOVEMENT_CHAIN_ID) {
+            try {
+              await walletProvider.request({
+                method: "wallet_switchEthereumChain",
+                params: [{ chainId: MOVEMENT_CHAIN_ID }],
+              });
+            } catch (switchError) {
+              // This error code indicates that the chain has not been added to the wallet
+              if (switchError.code === 4902 || switchError.code === -32603) {
+                try {
+                  await walletProvider.request({
+                    method: "wallet_addEthereumChain",
+                    params: [networks.movement_evm],
+                  });
+                } catch (addError) {
+                  console.error("Error adding Movement network:", addError);
+                  setError(
+                    "Failed to add Movement Network. Please add it manually."
+                  );
+                  return;
+                }
+              } else {
+                throw switchError;
+              }
+            }
+          }
+        }
       }
     } catch (error) {
-      console.error("Error ensuring Movement network:", error);
-      setError("Please switch to Movement Bardock Testnet");
+      console.error("Error ensuring correct network:", error);
+      setError(
+        `Failed to switch to the required network. Please try manually.`
+      );
     }
   };
 
-  // Helper function to check if we're on Movement Network rather than Fantom
-  const isMovementNetwork = async (walletProvider, chainId) => {
-    if (chainId !== FANTOM_CHAIN_ID) return false;
+  // Connect wallet function for both EVM and Aptos
+  const connectWallet = async (type, walletName) => {
+    setNetworkType(type);
 
-    try {
-      // Try to get network information to differentiate between Movement and Fantom
-      const provider = new ethers.BrowserProvider(walletProvider);
-      const network = await provider.getNetwork();
+    // Get wallet provider specifically for the requested wallet
+    let walletProvider;
 
-      // Check network name or other properties
-      return network.name === "Movement" || network.name.includes("Movement");
-    } catch (error) {
-      console.error("Error checking network:", error);
-      return false;
-    }
-  };
-
-  useEffect(() => {
-    // Get available wallet provider
-    const walletProvider = getProvider();
-
-    if (walletProvider) {
-      try {
-        // Create a provider instance
-        const provider = new ethers.BrowserProvider(walletProvider);
-        setProvider(provider);
-
-        // Check if already connected
-        checkConnection(provider);
-
-        // Listen for account changes
-        walletProvider.on("accountsChanged", handleAccountsChanged);
-
-        // Listen for chain changes
-        walletProvider.on("chainChanged", handleChainChanged);
-      } catch (error) {
-        console.error("Error initializing wallet provider:", error);
-        setError("Failed to initialize wallet connection");
+    if (type === "evm" && walletName === "metamask") {
+      // Check for MetaMask
+      if (window.ethereum && window.ethereum.isMetaMask) {
+        walletProvider = window.ethereum;
+        setActiveWallet("metamask");
       }
+    } else if (type === "aptos" && walletName === "okx") {
+      // Check for OKX Aptos wallet
+      if (typeof window.okxwallet !== "undefined" && window.okxwallet.aptos) {
+        walletProvider = window.okxwallet.aptos;
+        setActiveWallet("okx");
+      }
+    } else {
+      // Fallback to generic provider if no specific wallet requested
+      walletProvider = getProvider(type);
     }
 
-    return () => {
-      // Clean up event listeners
-      const walletProvider = getProvider();
-      if (walletProvider) {
-        walletProvider.removeListener("accountsChanged", handleAccountsChanged);
-        walletProvider.removeListener("chainChanged", handleChainChanged);
-      }
-    };
-  }, []);
+    if (!walletProvider) {
+      setError(
+        `Please install a supported ${type.toUpperCase()} wallet to use this feature`
+      );
+      return;
+    }
 
-  const checkConnection = async (provider) => {
     try {
-      const accounts = await provider.listAccounts();
-      if (accounts.length > 0) {
-        const signer = await provider.getSigner();
-        const network = await provider.getNetwork();
-        const chainId = network.chainId;
+      if (type === "aptos") {
+        // Connect Aptos wallet (OKX)
+        const response = await walletProvider.connect();
+        const account = response.address || response.publicKey;
 
-        setSigner(signer);
-        setAccount(accounts[0].address);
-        setNetwork(network.name);
-        setChainId(chainId);
+        setAccount(account);
         setIsConnected(true);
         setError(null);
 
-        // Check if we're on Movement Network or Fantom
-        const hexChainId = "0x" + chainId.toString(16);
-        const walletProvider = getProvider();
+        // Ensure correct network for the specific wallet
+        await ensureCorrectNetwork(type, activeWallet);
+      } else if (type === "evm") {
+        try {
+          // Request account access
+          const accounts = await walletProvider.request({
+            method: "eth_requestAccounts",
+          });
 
-        if (
-          hexChainId === networks.movement.chainId &&
-          !(
-            hexChainId === FANTOM_CHAIN_ID &&
-            !(await isMovementNetwork(walletProvider, hexChainId))
-          )
-        ) {
-          setCurrentNetwork("movement");
-        } else {
-          // If not on Movement Network, switch to it
-          await ensureMovementNetwork();
-        }
-      }
-    } catch (error) {
-      console.error("Error checking connection:", error);
-      setError("Failed to check wallet connection");
-      setIsConnected(false);
-    }
-  };
+          if (!accounts || accounts.length === 0) {
+            throw new Error("No accounts found");
+          }
 
-  const handleAccountsChanged = async (accounts) => {
-    try {
-      if (accounts.length === 0) {
-        // User disconnected their wallet
-        setIsConnected(false);
-        setAccount(null);
-        setSigner(null);
-        setError(null);
-      } else {
-        // Account changed, update state
-        if (provider) {
-          const signer = await provider.getSigner();
+          // Create ethers provider
+          const ethProvider = new ethers.BrowserProvider(walletProvider);
+          setProvider(ethProvider);
+
+          // Get signer and address
+          const signer = await ethProvider.getSigner();
+          const address = await signer.getAddress();
+
+          // Ensure correct network based on which wallet it is
+          await ensureCorrectNetwork(type, activeWallet);
+
+          // Get network after ensuring correct network
+          const network = await ethProvider.getNetwork();
+
           setSigner(signer);
-          setAccount(accounts[0]);
+          setAccount(address);
+          setNetwork(network.name);
+          setChainId(network.chainId);
           setIsConnected(true);
           setError(null);
-          // Ensure we're on Movement Network when account changes
-          await ensureMovementNetwork();
+        } catch (err) {
+          console.error("EVM wallet connection error:", err);
+          if (err.code === 4001) {
+            setError("Please accept the connection request in your wallet");
+          } else if (err.code === -32002) {
+            setError(
+              "Please check your wallet - a connection request is pending"
+            );
+          } else {
+            setError(`Failed to connect wallet: ${err.message}`);
+          }
+          setIsConnected(false);
         }
       }
     } catch (error) {
-      console.error("Error handling account change:", error);
-      setError("Failed to update wallet connection");
-    }
-  };
-
-  const handleChainChanged = async (chainId) => {
-    const walletProvider = getProvider();
-
-    // Check if the new chain is Fantom instead of Movement
-    const isFantom =
-      chainId === FANTOM_CHAIN_ID &&
-      activeWallet === "okx" &&
-      !(await isMovementNetwork(walletProvider, chainId));
-
-    // Always ensure on Movement Network
-    if (chainId !== networks.movement.chainId || isFantom) {
-      await ensureMovementNetwork();
-    }
-
-    // Refresh the page to ensure clean state
-    window.location.reload();
-  };
-
-  const connectWallet = async () => {
-    const walletProvider = getProvider();
-
-    if (!walletProvider) {
-      setError(
-        "Please install a supported wallet (MetaMask, OKX, or Rajor) to use this feature"
-      );
-      return;
-    }
-
-    try {
-      // Different request method depending on wallet
-      if (activeWallet === "rajor") {
-        // Rajor specific connection method
-        await walletProvider.connect();
-      } else {
-        // Standard EIP-1102 method for MetaMask and OKX
-        await walletProvider.request({ method: "eth_requestAccounts" });
-      }
-
-      // Create a new provider since we now have permission
-      const ethProvider = new ethers.BrowserProvider(walletProvider);
-      setProvider(ethProvider);
-
-      // Ensure we're on Movement Network before proceeding
-      await ensureMovementNetwork();
-
-      const signer = await ethProvider.getSigner();
-      const address = await signer.getAddress();
-      const network = await ethProvider.getNetwork();
-      const chainId = network.chainId;
-
-      setSigner(signer);
-      setAccount(address);
-      setNetwork(network.name);
-      setChainId(chainId);
-      setIsConnected(true);
-      setError(null);
-
-      // Set current network
-      setCurrentNetwork("movement");
-    } catch (error) {
       console.error("Error connecting wallet:", error);
-      setError("Failed to connect wallet. Please try again.");
+      setError(
+        `Failed to connect ${type.toUpperCase()} wallet. Please try again.`
+      );
       setIsConnected(false);
     }
   };
 
-  const disconnectWallet = () => {
-    // Rajor-specific disconnect
-    if (
-      activeWallet === "rajor" &&
-      window.rajor &&
-      typeof window.rajor.disconnect === "function"
-    ) {
-      try {
-        window.rajor.disconnect();
-      } catch (error) {
-        console.error("Error disconnecting Rajor wallet:", error);
-      }
-    }
-
-    setIsConnected(false);
-    setAccount(null);
-    setSigner(null);
-    setActiveWallet(null);
-    setError(null);
-  };
-
-  const switchNetwork = async (networkId) => {
-    const walletProvider = getProvider();
-
-    if (!walletProvider) {
-      setError("Please install a supported wallet to use this feature");
-      return;
-    }
-
-    const networkConfig = networks[networkId];
-    if (!networkConfig) {
-      console.error("Invalid network selected");
-      setError("Invalid network selected");
-      return;
-    }
-
+  // Disconnect wallet
+  const disconnectWallet = async () => {
     try {
-      // For OKX wallet on Fantom, we need a special handling
-      if (
-        activeWallet === "okx" &&
-        (await isMovementNetwork(walletProvider, networkConfig.chainId)) ===
-          false
-      ) {
-        setError(
-          "OKX wallet may be connected to Fantom instead of Movement. Please manually add Movement Network in your wallet settings."
-        );
-        return;
-      }
-
-      // Rajor-specific network switching if available
-      if (
-        activeWallet === "rajor" &&
-        typeof walletProvider.switchNetwork === "function"
-      ) {
-        await walletProvider.switchNetwork(networkConfig.chainId);
-        setCurrentNetwork(networkId);
-        setError(null);
-        return;
-      }
-
-      // Standard EIP-3326 method for other wallets
-      try {
-        await walletProvider.request({
-          method: "wallet_switchEthereumChain",
-          params: [{ chainId: networkConfig.chainId }],
-        });
-        setCurrentNetwork(networkId);
-        setError(null);
-      } catch (switchError) {
-        // This error code indicates that the chain has not been added to wallet
-        if (switchError.code === 4902) {
-          try {
-            await walletProvider.request({
-              method: "wallet_addEthereumChain",
-              params: [
-                {
-                  chainId: networkConfig.chainId,
-                  chainName: networkConfig.chainName,
-                  nativeCurrency: networkConfig.nativeCurrency,
-                  rpcUrls: networkConfig.rpcUrls,
-                  blockExplorerUrls: networkConfig.blockExplorerUrls,
-                },
-              ],
-            });
-
-            // After adding, try to switch to it
-            await walletProvider.request({
-              method: "wallet_switchEthereumChain",
-              params: [{ chainId: networkConfig.chainId }],
-            });
-
-            setCurrentNetwork(networkId);
-            setError(null);
-          } catch (addError) {
-            console.error("Error adding network:", addError);
-            setError(
-              "Failed to add Movement Network. Please add it manually in your wallet."
-            );
-          }
-        } else {
-          throw switchError;
+      if (networkType === "aptos") {
+        const walletProvider = getProvider();
+        if (walletProvider && walletProvider.disconnect) {
+          await walletProvider.disconnect();
         }
       }
+
+      // Clear all wallet state
+      setProvider(null);
+      setSigner(null);
+      setAccount(null);
+      setNetwork(null);
+      setChainId(null);
+      setIsConnected(false);
+      setActiveWallet(null);
+      setAptosClient(null);
+      setError(null);
     } catch (error) {
-      console.error("Error switching network:", error);
-      setError(
-        "Failed to switch network. Please try again or add Movement Network manually in your wallet settings."
-      );
+      console.error("Error disconnecting wallet:", error);
+      setError("Failed to disconnect wallet. Please try again.");
     }
   };
 
+  // Set up event listeners for wallet changes
+  useEffect(() => {
+    const setupWallet = async () => {
+      // Set up EVM wallet event listeners
+      if (window.ethereum) {
+        window.ethereum.on("accountsChanged", handleAccountsChanged);
+        window.ethereum.on("chainChanged", handleChainChanged);
+      }
+
+      // Set up OKX Aptos wallet event listeners
+      if (window.okxwallet && window.okxwallet.aptos) {
+        window.okxwallet.aptos.onAccountChange = handleAccountChange;
+        window.okxwallet.aptos.onNetworkChange = handleNetworkChange;
+      }
+
+      // Clean up function
+      return async () => {
+        if (window.ethereum) {
+          window.ethereum.removeListener(
+            "accountsChanged",
+            handleAccountsChanged
+          );
+          window.ethereum.removeListener("chainChanged", handleChainChanged);
+        }
+
+        if (window.okxwallet && window.okxwallet.aptos) {
+          window.okxwallet.aptos.onAccountChange = null;
+          window.okxwallet.aptos.onNetworkChange = null;
+        }
+      };
+    };
+
+    setupWallet();
+  }, []);
+
+  // Handle account changes
+  const handleAccountChange = async (newAccount) => {
+    if (networkType === "aptos") {
+      setAccount(newAccount);
+      if (!newAccount) {
+        await disconnectWallet();
+      }
+    }
+  };
+
+  // Handle network changes for Aptos
+  const handleNetworkChange = async (newNetwork) => {
+    if (networkType === "aptos") {
+      await disconnectWallet();
+      setError("Network changed. Please reconnect your wallet.");
+    }
+  };
+
+  // Handle accounts changed for EVM
+  const handleAccountsChanged = async (accounts) => {
+    if (networkType === "evm") {
+      if (accounts.length === 0) {
+        await disconnectWallet();
+      } else if (accounts[0] !== account) {
+        setAccount(accounts[0]);
+      }
+    }
+  };
+
+  // Handle chain changed for EVM
+  const handleChainChanged = async (chainId) => {
+    if (networkType === "evm") {
+      if (activeWallet === "metamask" && chainId !== SEPOLIA_CHAIN_ID) {
+        // For MetaMask we want to ensure Sepolia
+        await ensureCorrectNetwork("evm", "metamask");
+      } else if (activeWallet !== "metamask" && chainId !== MOVEMENT_CHAIN_ID) {
+        // For other wallets, ensure Movement network
+        await ensureCorrectNetwork("evm", activeWallet);
+      }
+      window.location.reload();
+    }
+  };
+
+  // Create context value
   const value = {
     provider,
     signer,
@@ -380,12 +385,13 @@ export function WalletProvider({ children }) {
     network,
     chainId,
     isConnected,
-    currentNetwork,
     activeWallet,
+    networkType,
     error,
+    aptosClient,
     connectWallet,
     disconnectWallet,
-    switchNetwork,
+    contractService,
   };
 
   return (

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useWallet } from "../context/WalletContext";
+import { contractService } from "../services/contractService";
 import {
   getProject,
   formatProject,
@@ -13,7 +14,8 @@ import { ethers } from "ethers";
 
 const ProjectDetails = () => {
   const { id } = useParams();
-  const { provider, signer, account, isConnected } = useWallet();
+  const { provider, signer, account, isConnected, networkType, activeWallet } =
+    useWallet();
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [fundAmount, setFundAmount] = useState("");
@@ -101,18 +103,52 @@ const ProjectDetails = () => {
     setSuccess(null);
 
     try {
-      const amount = ethers.parseEther(fundAmount);
-      const tx = await fundProject(signer, id, amount);
+      let tx;
 
-      setSuccess("Project funded successfully! Transaction hash: " + tx.hash);
+      // Use different method based on network type
+      if (networkType === "evm") {
+        // For EVM networks (MetaMask/Sepolia)
+        if (activeWallet === "metamask" && window.ethereum) {
+          tx = await contractService.fundProjectEVM(
+            window.ethereum,
+            id,
+            fundAmount
+          );
+        } else {
+          throw new Error("EVM wallet not properly connected");
+        }
+      } else if (networkType === "aptos") {
+        // For Aptos networks (OKX, etc)
+        if (!window.okxwallet || !window.okxwallet.aptos) {
+          throw new Error("OKX wallet not found");
+        }
+
+        // Get the OKX wallet instance
+        const wallet = window.okxwallet.aptos;
+
+        // Ensure we have an account
+        const account = await wallet.account();
+        if (!account) {
+          throw new Error("No account found in OKX wallet");
+        }
+
+        tx = await contractService.fundProject(wallet, id, fundAmount);
+      } else {
+        throw new Error("Unsupported network type");
+      }
+
+      setSuccess(
+        "Project funded successfully! Transaction hash: " +
+          (tx.hash || tx.transactionHash)
+      );
       setFundAmount("");
 
       // Refresh project data
-      const projectData = await getProject(provider, id);
-      setProject(formatProject(projectData));
+      const projectData = await contractService.getProject(id);
+      setProject(projectData);
     } catch (error) {
       console.error("Error funding project:", error);
-      setError("Failed to fund project. Please try again.");
+      setError(`Failed to fund project: ${error.message || "Unknown error"}`);
     } finally {
       setTxPending(false);
     }
@@ -218,7 +254,7 @@ const ProjectDetails = () => {
           </p>
           <Link
             to="/projects"
-            className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-primary/90 transition-colors"
+            className="bg-primary text-black px-6 py-2 rounded-lg hover:bg-primary/90 transition-colors"
           >
             Browse Projects
           </Link>
@@ -246,7 +282,7 @@ const ProjectDetails = () => {
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Project Header */}
-      <div className="bg-white rounded-lg shadow-md overflow-hidden mb-8">
+      <div className="bg-zinc-700 rounded-lg shadow-md overflow-hidden mb-8">
         <div className="h-64 bg-gray-200"></div>
         <div className="p-6">
           <div className="flex justify-between items-start mb-4">
@@ -284,19 +320,19 @@ const ProjectDetails = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <div className="bg-gray-50 p-4 rounded-lg">
               <p className="text-sm text-gray-500">Funding Goal</p>
-              <p className="text-xl font-semibold">
+              <p className="text-xl font-semibold text-black">
                 {project.fundingGoal} MOVE
               </p>
             </div>
             <div className="bg-gray-50 p-4 rounded-lg">
               <p className="text-sm text-gray-500">Raised</p>
-              <p className="text-xl font-semibold">
+              <p className="text-xl font-semibold text-black">
                 {project.currentAmount} MOVE
               </p>
             </div>
             <div className="bg-gray-50 p-4 rounded-lg">
               <p className="text-sm text-gray-500">Deadline</p>
-              <p className="text-xl font-semibold">
+              <p className="text-xl font-semibold text-black">
                 {project.deadline instanceof Date
                   ? project.deadline.toLocaleDateString()
                   : project.deadline}
@@ -318,7 +354,7 @@ const ProjectDetails = () => {
           {/* Fund Project Form */}
           {isFundingActive && (
             <div className="bg-gray-50 p-6 rounded-lg mb-6">
-              <h3 className="text-xl font-semibold mb-4">
+              <h3 className="text-xl font-semibold mb-4 text-black">
                 Support This Project
               </h3>
 
@@ -406,7 +442,7 @@ const ProjectDetails = () => {
       </div>
 
       {/* Milestones Section */}
-      <div className="bg-white rounded-lg shadow-md overflow-hidden mb-8">
+      <div className="bg-zinc-700 rounded-lg shadow-md overflow-hidden mb-8">
         <div className="p-6">
           <h2 className="text-2xl font-semibold mb-6">Project Milestones</h2>
 

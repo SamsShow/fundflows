@@ -1,12 +1,18 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useWallet } from "../context/WalletContext";
-import { createProject } from "../utils/contractUtils";
 import { ethers } from "ethers";
 
 const CreateProject = () => {
   const navigate = useNavigate();
-  const { signer, isConnected } = useWallet();
+  const {
+    signer,
+    isConnected,
+    activeWallet,
+    networkType,
+    provider,
+    contractService,
+  } = useWallet();
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -42,6 +48,13 @@ const CreateProject = () => {
 
     if (!isConnected) {
       setError("Please connect your wallet first.");
+      return;
+    }
+
+    if (!signer && networkType === "aptos") {
+      setError(
+        "Aptos wallet not properly connected. Please reconnect your wallet."
+      );
       return;
     }
 
@@ -98,26 +111,60 @@ const CreateProject = () => {
 
       // Prepare milestone data
       const milestoneDescriptions = milestones.map((m) => m.description);
-      const milestoneAmounts = milestones.map((m) =>
-        ethers.parseEther(m.amount)
-      );
+      const milestoneAmounts = milestones.map((m) => m.amount);
 
-      // Create project
-      const tx = await createProject(
-        signer,
-        title,
-        description,
-        ethers.parseEther(fundingGoal),
-        deadlineTimestamp,
-        milestoneDescriptions,
-        milestoneAmounts
-      );
+      let tx;
 
+      // Use different method based on network type
+      if (networkType === "evm") {
+        // For EVM networks (MetaMask/Sepolia)
+        if (activeWallet === "metamask" && window.ethereum) {
+          tx = await contractService.createProjectEVM(
+            window.ethereum,
+            title,
+            description,
+            fundingGoal,
+            deadlineTimestamp,
+            milestoneDescriptions,
+            milestoneAmounts
+          );
+        } else {
+          throw new Error("EVM wallet not properly connected");
+        }
+      } else if (networkType === "aptos") {
+        // For Aptos networks (OKX, etc)
+        if (!window.okxwallet || !window.okxwallet.aptos) {
+          throw new Error("OKX wallet not found");
+        }
+
+        // Get the OKX wallet instance
+        const wallet = window.okxwallet.aptos;
+
+        // Ensure we have an account
+        const account = await wallet.account();
+        if (!account) {
+          throw new Error("No account found in OKX wallet");
+        }
+
+        tx = await contractService.createProject(
+          wallet, // Pass the wallet instance instead of signer
+          title,
+          description,
+          fundingGoal,
+          deadlineTimestamp,
+          milestoneDescriptions,
+          milestoneAmounts
+        );
+      } else {
+        throw new Error("Unsupported network type");
+      }
+
+      console.log("Project created successfully:", tx);
       // Navigate to projects page after successful creation
       navigate("/projects");
     } catch (error) {
       console.error("Error creating project:", error);
-      setError("Failed to create project. Please try again.");
+      setError(`Failed to create project: ${error.message || "Unknown error"}`);
     } finally {
       setLoading(false);
     }

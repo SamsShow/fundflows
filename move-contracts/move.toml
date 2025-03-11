@@ -1,6 +1,6 @@
 [package]
 name = "FundFlow"
-version = "0.1.0"
+version = "1.0.0"
 authors = ["FundFlow Team"]
 
 [addresses]
@@ -9,6 +9,13 @@ aptos_std = "0x1"
 aptos_framework = "0x1"
 fundflow = "0x7872e435cfc5150d12070f7f8b638960afa364c9b24c040a960ef8756305eba2"
 
+[dependencies.AptosFramework]
+git = "https://github.com/aptos-labs/aptos-core.git"
+rev = "aptos-release-v1.25"
+subdir = "aptos-move/framework/aptos-framework"
+
 [dependencies]
-AptosFramework = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/aptos-framework/", rev = "aptos-node-v1.27.1" }
-MoveStdlib = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/move-stdlib/", rev = "aptos-node-v1.27.1" } 
+AptosTokenObjects = { git = "https://github.com/aptos-labs/aptos-core.git", rev = "aptos-release-v1.25", subdir = "aptos-move/framework/aptos-token-objects" }
+MoveStdlib = { git = "https://github.com/aptos-labs/aptos-core.git", rev = "aptos-release-v1.25", subdir = "aptos-move/framework/move-stdlib" }
+
+[dev-dependencies] 
